@@ -12,7 +12,8 @@ func main() {
 	defer termbox.Close()
 	termbox.SetInputMode(termbox.InputEsc)
 	termbox.Clear(termbox.ColorWhite, termbox.ColorBlack)
-	field := MakeField()
+
+	field := MakeField(termbox.Size())
 	team := MakeTeam()
 	team[0] = Unit{name: 'Y', x: 1, y: 2}
 
@@ -61,12 +62,12 @@ var noiseToBiome = map[int]Biome{
 	2: BiomeGrass,
 }
 
-func MakeField() Field {
-	field := make(Field, 80)
+func MakeField(width int, height int) Field {
+	field := make(Field, height)
 	n2d := NewNoise2DContext(0)
 
 	for i := range field {
-		field[i] = make([]FieldCell, 80)
+		field[i] = make([]FieldCell, width)
 		for j := range field[i] {
 			v := n2d.Get(float32(i) * 0.1, float32(j) * 0.1)
 			v = v * 0.5 + 0.5
