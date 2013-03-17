@@ -15,13 +15,14 @@ func main() {
 
 	field := MakeField(termbox.Size())
 	team := MakeTeam()
+	raster := MakeRaster(team, field)
 	team[0] = Unit{name: 'Y', x: 1, y: 2}
 
 loop:
 	for {
 		termbox.Clear(termbox.ColorWhite, termbox.ColorBlack)
-			field.Draw()
-			team.Draw()
+			raster.DrawTerrain()
+			raster.DrawUnits()
 		termbox.Flush()
 
 		switch ev := termbox.PollEvent(); ev.Type {
@@ -45,6 +46,7 @@ loop:
 	return
 }
 
+/* --------- Terrain / Field ----- */
 type Biome int32
 const (
 	BiomeGrass = iota
@@ -78,21 +80,9 @@ func MakeField(width int, height int) Field {
 	return field
 }
 
-var biomeColors = map[Biome]termbox.Attribute{
-	BiomeLake: termbox.ColorBlue,
-	BiomeGrass: termbox.ColorGreen,
-}
 
-func (field Field) Draw() {
-	for y := range field {
-		for x := range field[y] {
-			termbox.SetCell(x, y, ' ', termbox.ColorWhite,
-							biomeColors[field[y][x].terrain])
-		}
-	}
-	return
-}
 
+/* ------- Unit ------- */
 type Team []Unit
 type Unit struct {
 	name   rune
@@ -117,14 +107,42 @@ func (this *Unit) Move(dx int, dy int, terrain Field) {
 	return
 }
 
+/* ------- Team ------- */
 func MakeTeam() Team {
 	return make(Team, 10)
 }
 
-func (team Team) Draw() {
-	for _, unit := range team {
-		termbox.SetCell(unit.x, unit.y, unit.name, termbox.ColorWhite,
-termbox.ColorDefault)
+/* ------- Raster ----- */
+type Raster struct {
+	units Team
+	terrain Field
+}
+
+func MakeRaster(u Team, t Field) *Raster {
+	this := new(Raster)
+	this.units = u
+	this.terrain = t
+	return this
+}
+
+var biomeColors = map[Biome]termbox.Attribute{
+	BiomeLake: termbox.ColorBlue,
+	BiomeGrass: termbox.ColorGreen,
+}
+func (this Raster) DrawTerrain() {
+	for y := range this.terrain {
+		for x := range this.terrain[y] {
+			termbox.SetCell(x, y, ' ', termbox.ColorWhite,
+							biomeColors[this.terrain[y][x].terrain])
+		}
+	}
+	return
+}
+
+func (this Raster) DrawUnits() {
+	for _, unit := range this.units {
+		bg := biomeColors[this.terrain[unit.y][unit.x].terrain]
+		termbox.SetCell(unit.x, unit.y, unit.name, termbox.ColorWhite, bg)
 	}
 	return
 }
