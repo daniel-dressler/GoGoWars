@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/nsf/termbox-go"
+	"time"
 )
 
 func main() {
@@ -13,7 +14,9 @@ func main() {
 	termbox.SetInputMode(termbox.InputEsc)
 	termbox.Clear(termbox.ColorWhite, termbox.ColorBlack)
 
-	field := MakeField(termbox.Size())
+	MainMenu()
+
+	field := MakeField(DeductUI(termbox.Size()))
 	team := MakeTeam()
 	raster := MakeRaster(team, field)
 	team[0] = Unit{name: 'Y', x: 1, y: 2}
@@ -23,6 +26,7 @@ loop:
 		termbox.Clear(termbox.ColorWhite, termbox.ColorBlack)
 			raster.DrawTerrain()
 			raster.DrawUnits()
+			raster.DrawUI()
 		termbox.Flush()
 
 		switch ev := termbox.PollEvent(); ev.Type {
@@ -146,3 +150,74 @@ func (this Raster) DrawUnits() {
 	}
 	return
 }
+
+var heightUI int = 4
+func DeductUI(width int, height int) (int, int) {
+	return width, height - heightUI
+}
+
+func (this Raster) DrawUI() {
+	windowHeight := len(this.terrain)
+	for x := 0; x < len(this.terrain[0]); x++ {
+		for y := 0; y < heightUI; y++ {
+			var char rune = ' '
+			if y == 0 {
+				char = '‾'
+			}
+			
+			termbox.SetCell(x, windowHeight + y, char, termbox.ColorWhite, termbox.ColorBlack)
+		}
+	}
+}
+			
+
+/* ------- main menu ---------- */
+
+func MainMenu() int {
+	for {
+		termbox.Clear(termbox.ColorWhite, termbox.ColorWhite)
+			drawLogo()
+		termbox.Flush()
+
+		switch ev := termbox.PollEvent(); ev.Type {
+		case termbox.EventKey:
+			switch ev.Key {
+			case termbox.KeyEsc:
+				return 0
+			default:
+				time.Sleep(500 * time.Millisecond)
+			}
+		}
+	}
+	return 1
+}
+
+func drawLogo() {
+	leftCorner := 80/2 - 45/2;
+	topCorner  := 3;
+	x := leftCorner
+	y := topCorner
+	for _, c := range logo {
+		if c == '\n' {
+			y++
+			x = leftCorner
+		} else {
+			termbox.SetCell(x, y, c, termbox.ColorYellow, termbox.ColorWhite)
+			x++
+		}
+	}
+}
+
+var logo string = 
+`   _____    ____      _____    ____    +---+
+  /▒▒▒▒▒|  /▒▒▒▒\    /▒▒▒▒▒|  /▒▒▒▒\   |▒▒▒|
+ |▒|  __  |▒|  |▒|  |▒|  __  |▒|  |▒|  |▒▒▒|
+ |▒| |▒▒| |▒|  |▒|  |▒| |▒▒| |▒|  |▒|  |▒▒▒|
+ |▒|__|▒| |▒|__|▒|  |▒|__|▒| |▒|__|▒|  |▒▒▒|
+  \▒▒▒▒▒|  \▒▒▒▒/    \▒▒▒▒▒|  \▒▒▒▒/   |▒▒▒|
+                                       |▒▒▒|
+ \ \        / /                        +---+
+  \ \  /\  / /    ____   ____   ___
+   \ \/  \/ /    / _  | | ___| / __|   +---+
+    \  /\  /    | (_| | | |    \__ \   |▒▒▒|
+     \/  \/      \____| |_|    |___/   +---+`
