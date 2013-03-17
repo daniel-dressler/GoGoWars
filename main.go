@@ -1,29 +1,29 @@
 package main
 
 import (
-"fmt"
-"math/rand"
- "github.com/nsf/termbox-go"
+	"fmt"
+	"github.com/nsf/termbox-go"
+	"math/rand"
 )
 
 func main() {
 	err := termbox.Init()
-if err != nil {
-panic(err)
-}
-defer termbox.Close()
-termbox.SetInputMode(termbox.InputEsc)
-termbox.Clear(termbox.ColorWhite, termbox.ColorBlack)
+	if err != nil {
+		panic(err)
+	}
+	defer termbox.Close()
+	termbox.SetInputMode(termbox.InputEsc)
+	termbox.Clear(termbox.ColorWhite, termbox.ColorBlack)
 	field := MakeField()
 	team := MakeTeam()
-	team[0] = Unit{name: 'Y', x:1, y:2}
-	
+	team[0] = Unit{name: 'Y', x: 1, y: 2}
+
 	for {
 		fmt.Print(team.Draw(field.Draw()))
 		var move int = 0
-		fmt.Printf("Movement: ");
+		fmt.Printf("Movement: ")
 		fmt.Scanf("%d", &move)
-		fmt.Printf("\n");
+		fmt.Printf("\n")
 
 		var dx, dy int = 0, 0
 		switch move {
@@ -63,7 +63,6 @@ func (img Raster) String() string {
 	}
 	return ret
 }
-			
 
 type Field [][]FieldCell
 type FieldCell struct {
@@ -92,14 +91,13 @@ func (field Field) Draw() Raster {
 	return ret
 }
 
-
 type Team []Unit
 type Unit struct {
-	name byte
-	id int
+	name   byte
+	id     int
 	health int
-	x int
-	y int
+	x      int
+	y      int
 }
 
 func MakeTeam() Team {
@@ -112,4 +110,3 @@ func (team Team) Draw(raster Raster) Raster {
 	}
 	return raster
 }
-
