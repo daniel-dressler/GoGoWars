@@ -1,15 +1,45 @@
 package main
 
-import "fmt"
-import "math/rand" 
+import (
+"fmt"
+"math/rand"
+ "github.com/nsf/termbox-go"
+)
 
 func main() {
+	err := termbox.Init()
+if err != nil {
+panic(err)
+}
+defer termbox.Close()
+termbox.SetInputMode(termbox.InputEsc)
+termbox.Clear(termbox.ColorWhite, termbox.ColorBlack)
 	field := MakeField()
 	team := MakeTeam()
-	team[0].name = 'Y'
-	team[0].x = 4
-	team[0].y = 2
-	fmt.Print(team.Draw(field.Draw()))
+	team[0] = Unit{name: 'Y', x:1, y:2}
+	
+	for {
+		fmt.Print(team.Draw(field.Draw()))
+		var move int = 0
+		fmt.Printf("Movement: ");
+		fmt.Scanf("%d", &move)
+		fmt.Printf("\n");
+
+		var dx, dy int = 0, 0
+		switch move {
+		case 8:
+			dy = 1
+		case 4:
+			dx = -1
+		case 2:
+			dy = -1
+		case 6:
+			dx = 1
+		}
+
+		team[0].x += dx
+		team[0].y += dy
+	}
 	return
 }
 
@@ -55,7 +85,8 @@ func (field Field) Draw() Raster {
 	ret := MakeRaster(field)
 	for y := range field {
 		for x := range field[y] {
-			ret[y][x] = field[y][x].biome
+			ret[y][x] = ' '
+			//ret[y][x] = field[y][x].biome
 		}
 	}
 	return ret
