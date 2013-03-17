@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/nsf/termbox-go"
-	"math/rand"
 )
 
 func main() {
@@ -45,28 +44,7 @@ loop:
 	}
 	return
 }
-/*
-type Raster [][]byte
 
-func MakeRaster(field Field) Raster {
-	ret := make(Raster, len(field))
-	for i := range ret {
-		ret[i] = make([]byte, len(field[i]))
-	}
-	return ret
-}
-
-func (img Raster) String() string {
-	ret := ""
-	for _, col := range img {
-		for _, char := range col {
-			ret += string(char)
-		}
-		ret += "\n"
-	}
-	return ret
-}
-*/
 type Field [][]FieldCell
 type FieldCell struct {
 	biome int
@@ -74,10 +52,15 @@ type FieldCell struct {
 
 func MakeField() Field {
 	field := make(Field, 80)
+	n2d := NewNoise2DContext(0)
+
 	for i := range field {
 		field[i] = make([]FieldCell, 80)
 		for j := range field[i] {
-			field[i][j].biome = rand.Intn(3)
+			v := n2d.Get(float32(i) * 0.1, float32(j) * 0.1)
+			v = v * 0.5 + 0.5
+			field[i][j].biome = int( v / 0.3)
+			
 		}
 	}
 	return field
@@ -87,6 +70,8 @@ var biomeColors = map[int]termbox.Attribute{
 	0: termbox.ColorBlue,
 	1: termbox.ColorGreen,
 	2: termbox.ColorGreen,
+	9: termbox.ColorBlack,
+	10: termbox.ColorWhite,
 }
 
 func (field Field) Draw() {
