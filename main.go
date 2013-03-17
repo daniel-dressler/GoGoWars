@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/nsf/termbox-go"
 	"math/rand"
 )
@@ -18,31 +17,35 @@ func main() {
 	team := MakeTeam()
 	team[0] = Unit{name: 'Y', x: 1, y: 2}
 
+loop:
 	for {
-		fmt.Print(team.Draw(field.Draw()))
-		var move int = 0
-		fmt.Printf("Movement: ")
-		fmt.Scanf("%d", &move)
-		fmt.Printf("\n")
+		termbox.Clear(termbox.ColorWhite, termbox.ColorBlack)
+			field.Draw()
+			team.Draw()
+		termbox.Flush()
 
-		var dx, dy int = 0, 0
-		switch move {
-		case 8:
-			dy = 1
-		case 4:
-			dx = -1
-		case 2:
-			dy = -1
-		case 6:
-			dx = 1
+		switch ev := termbox.PollEvent(); ev.Type {
+		case termbox.EventKey:
+			dx, dy := 0, 0
+			switch ev.Key {
+			case termbox.KeyEsc:
+				break loop
+			case termbox.KeyArrowUp:
+				dy = -1
+			case termbox.KeyArrowDown:
+				dy = 1
+			case termbox.KeyArrowLeft:
+				dx = -1
+			case termbox.KeyArrowRight:
+				dx = 1
+			}
+			team[0].x += dx
+			team[0].y += dy
 		}
-
-		team[0].x += dx
-		team[0].y += dy
 	}
 	return
 }
-
+/*
 type Raster [][]byte
 
 func MakeRaster(field Field) Raster {
@@ -63,37 +66,41 @@ func (img Raster) String() string {
 	}
 	return ret
 }
-
+*/
 type Field [][]FieldCell
 type FieldCell struct {
-	biome byte
+	biome int
 }
 
 func MakeField() Field {
-	field := make(Field, 10)
+	field := make(Field, 80)
 	for i := range field {
-		field[i] = make([]FieldCell, 10)
+		field[i] = make([]FieldCell, 80)
 		for j := range field[i] {
-			field[i][j].biome = byte(rand.Intn(3)) + 48
+			field[i][j].biome = rand.Intn(3)
 		}
 	}
 	return field
 }
 
-func (field Field) Draw() Raster {
-	ret := MakeRaster(field)
+var biomeColors = map[int]termbox.Attribute{
+	0: termbox.ColorBlue,
+	1: termbox.ColorGreen,
+	2: termbox.ColorGreen,
+}
+
+func (field Field) Draw() {
 	for y := range field {
 		for x := range field[y] {
-			ret[y][x] = ' '
-			//ret[y][x] = field[y][x].biome
+			termbox.SetCell(x, y, ' ', termbox.ColorWhite, biomeColors[field[y][x].biome])
 		}
 	}
-	return ret
+	return
 }
 
 type Team []Unit
 type Unit struct {
-	name   byte
+	name   rune
 	id     int
 	health int
 	x      int
@@ -104,9 +111,10 @@ func MakeTeam() Team {
 	return make(Team, 10)
 }
 
-func (team Team) Draw(raster Raster) Raster {
+func (team Team) Draw() {
 	for _, unit := range team {
-		raster[unit.y][unit.x] = unit.name
+		termbox.SetCell(unit.x, unit.y, unit.name, termbox.ColorWhite,
+termbox.ColorDefault)
 	}
-	return raster
+	return
 }
