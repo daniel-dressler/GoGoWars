@@ -38,16 +38,27 @@ loop:
 			case termbox.KeyArrowRight:
 				dx = 1
 			}
-			team[0].x += dx
-			team[0].y += dy
+			team[0].Move(dx, dy, field)
 		}
 	}
 	return
 }
 
+type Biome int32
+const (
+	BiomeGrass = iota
+	BiomeLake
+)
+
 type Field [][]FieldCell
 type FieldCell struct {
-	biome int
+	terrain Biome
+}
+
+var noiseToBiome = map[int]Biome{
+	0: BiomeLake,
+	1: BiomeGrass,
+	2: BiomeGrass,
 }
 
 func MakeField() Field {
@@ -59,25 +70,23 @@ func MakeField() Field {
 		for j := range field[i] {
 			v := n2d.Get(float32(i) * 0.1, float32(j) * 0.1)
 			v = v * 0.5 + 0.5
-			field[i][j].biome = int( v / 0.3)
+			field[i][j].terrain = noiseToBiome[int( v / 0.3)]
 			
 		}
 	}
 	return field
 }
 
-var biomeColors = map[int]termbox.Attribute{
-	0: termbox.ColorBlue,
-	1: termbox.ColorGreen,
-	2: termbox.ColorGreen,
-	9: termbox.ColorBlack,
-	10: termbox.ColorWhite,
+var biomeColors = map[Biome]termbox.Attribute{
+	BiomeLake: termbox.ColorBlue,
+	BiomeGrass: termbox.ColorGreen,
 }
 
 func (field Field) Draw() {
 	for y := range field {
 		for x := range field[y] {
-			termbox.SetCell(x, y, ' ', termbox.ColorWhite, biomeColors[field[y][x].biome])
+			termbox.SetCell(x, y, ' ', termbox.ColorWhite,
+							biomeColors[field[y][x].terrain])
 		}
 	}
 	return
@@ -90,6 +99,21 @@ type Unit struct {
 	health int
 	x      int
 	y      int
+}
+
+func (this *Unit) Move(dx int, dy int, terrain Field) {
+	this.x += dx
+	this.y += dy
+	
+	if  this.x < 0 || this.x >= len(terrain[0]) ||
+		this.y < 0 || this.y >= len(terrain) ||
+		terrain[this.y][this.x].terrain != BiomeGrass {
+
+		this.x -= dx
+		this.y -= dy
+	}
+
+	return
 }
 
 func MakeTeam() Team {
