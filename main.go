@@ -25,8 +25,8 @@ func main() {
 	field := MakeField(DeductUI(termbox.Size()))
 	team := MakeTeam()
 	raster := MakeRaster(team, field)
-	team[0] = Unit{name: 'イ', x: 1, y: 2, health: 10, movePoints: 3}
-	team[1] = Unit{name: 'ヒ', x: 1, y: 3, health: 5, movePoints: 1}
+	team[0] = Unit{name: '߉', x: 1, y: 2, health: 10, movePoints: 3}
+	team[1] = Unit{name: 'ﾋ', x: 1, y: 3, health: 5, movePoints: 1}
 
 loop:
 	for {
@@ -215,12 +215,19 @@ func DrawMsg(msg string, leftCorner int, topCorner int,
 
 /* ------- main menu ---------- */
 
+func getWindowMid() int {
+	x, _ := termbox.Size()
+	return x / 2
+}
+
 func MainMenu() int {
 	termbox.Clear(termbox.ColorWhite, termbox.ColorWhite)
 	logoChannel := make(chan bool)
 	go animateLogo(logoChannel)
 
-	DrawMsg(skirmishButton, 80/2-32/2, 17,
+
+
+	DrawMsg(skirmishButton, getWindowMid()-32/2, 17,
 			termbox.ColorBlack, termbox.ColorWhite)
 
 	for {
@@ -253,7 +260,7 @@ func animateLogo(quit chan bool) {
 			return
 		default:
 			time.Sleep(500 * time.Millisecond)
-			DrawMsg(logo[frame], 80/2-50/2, 2,
+			DrawMsg(logo[frame], getWindowMid()-50/2, 2,
 				termbox.ColorBlack, termbox.ColorWhite)
 			termbox.Flush()
 			frame++
