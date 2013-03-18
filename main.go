@@ -15,7 +15,12 @@ func main() {
 	termbox.SetInputMode(termbox.InputEsc)
 	termbox.Clear(termbox.ColorWhite, termbox.ColorBlack)
 
-	MainMenu()
+	gameType := MainMenu()
+	if gameType == 0 {
+		return
+	} else if gameType == 1 {
+		// skirmish
+	}
 
 	field := MakeField(DeductUI(termbox.Size()))
 	team := MakeTeam()
@@ -81,7 +86,7 @@ var noiseToBiome = map[int]Biome{
 
 func MakeField(width int, height int) Field {
 	field := make(Field, height)
-	n2d := NewNoise2DContext(0)
+	n2d := NewNoise2DContext(time.Now().Unix())
 
 	for i := range field {
 		field[i] = make([]FieldCell, width)
@@ -194,7 +199,7 @@ func (this Raster) DrawUiMsg(msg string, x int, y int) {
 }
 
 func DrawMsg(msg string, leftCorner int, topCorner int,
-	fg termbox.Attribute, bg termbox.Attribute) {
+							fg termbox.Attribute, bg termbox.Attribute) {
 	x := leftCorner
 	y := topCorner
 	for _, c := range msg {
@@ -215,6 +220,9 @@ func MainMenu() int {
 	logoChannel := make(chan bool)
 	go animateLogo(logoChannel)
 
+	DrawMsg(skirmishButton, 80/2-32/2, 17,
+			termbox.ColorBlack, termbox.ColorWhite)
+
 	for {
 		switch ev := termbox.PollEvent(); ev.Type {
 		case termbox.EventKey:
@@ -222,11 +230,20 @@ func MainMenu() int {
 			case termbox.KeyEsc:
 				logoChannel <- true
 				return 0
+			default:
+				logoChannel <- true
+				return 1
 			}
 		}
 	}
 	return 1
 }
+
+
+var skirmishButton string = `
++------------------------------+
+|    Play a skirmish! ENTER    |
++------------------------------+`
 
 func animateLogo(quit chan bool) {
 	frame := 0
@@ -259,7 +276,6 @@ var logo_frame1 string = `
      \  /\  /    | (_| | | |    \__ \   |▒▒▒| 
       \/  \/      \____| |_|    |___/   +---+ 
                                                 
-                                               
                                                 `
 
 var logo_frame2 string = `   _____    ____        _____    ____       +---+
