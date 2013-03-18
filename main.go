@@ -211,34 +211,68 @@ func DrawMsg(msg string, leftCorner int, topCorner int,
 /* ------- main menu ---------- */
 
 func MainMenu() int {
-	for {
-		termbox.Clear(termbox.ColorWhite, termbox.ColorWhite)
-		DrawMsg(logo, 80/2-45/2, 3,
-			termbox.ColorYellow, termbox.ColorWhite)
-		termbox.Flush()
+	termbox.Clear(termbox.ColorWhite, termbox.ColorWhite)
+	logoChannel := make(chan bool)
+	go animateLogo(logoChannel)
 
+	for {
 		switch ev := termbox.PollEvent(); ev.Type {
 		case termbox.EventKey:
 			switch ev.Key {
 			case termbox.KeyEsc:
+				logoChannel <- true
 				return 0
-			default:
-				time.Sleep(500 * time.Millisecond)
 			}
 		}
 	}
 	return 1
 }
 
-var logo string = `   _____    ____      _____    ____    +---+
-  /▒▒▒▒▒|  /▒▒▒▒\    /▒▒▒▒▒|  /▒▒▒▒\   |▒▒▒|
- |▒|  __  |▒|  |▒|  |▒|  __  |▒|  |▒|  |▒▒▒|
- |▒| |▒▒| |▒|  |▒|  |▒| |▒▒| |▒|  |▒|  |▒▒▒|
- |▒|__|▒| |▒|__|▒|  |▒|__|▒| |▒|__|▒|  |▒▒▒|
-  \▒▒▒▒▒|  \▒▒▒▒/    \▒▒▒▒▒|  \▒▒▒▒/   |▒▒▒|
-                                       |▒▒▒|
- \ \        / /                        +---+
-  \ \  /\  / /    ____   ____   ___
-   \ \/  \/ /    / _  | | ___| / __|   +---+
-    \  /\  /    | (_| | | |    \__ \   |▒▒▒|
-     \/  \/      \____| |_|    |___/   +---+`
+func animateLogo(quit chan bool) {
+	frame := 0
+	for {
+		select {
+		case <- quit:
+			return
+		default:
+			time.Sleep(500 * time.Millisecond)
+			DrawMsg(logo[frame], 80/2-50/2, 2,
+				termbox.ColorBlack, termbox.ColorWhite)
+			termbox.Flush()
+			frame++
+			frame %= len(logo)
+		}
+	}
+}
+var logo = []string {logo_frame1, logo_frame2}
+var logo_frame1 string = `                                                  
+    _____    ____      _____    ____    +---+      
+   /▒▒▒▒▒|  /▒▒▒▒\    /▒▒▒▒▒|  /▒▒▒▒\   |▒▒▒|       
+  |▒|  __  |▒|  |▒|  |▒|  __  |▒|  |▒|  |▒▒▒|   
+  |▒| |▒▒| |▒|  |▒|  |▒| |▒▒| |▒|  |▒|  |▒▒▒|   
+  |▒|__|▒| |▒|__|▒|  |▒|__|▒| |▒|__|▒|  |▒▒▒|   
+   \▒▒▒▒▒|  \▒▒▒▒/    \▒▒▒▒▒|  \▒▒▒▒/   |▒▒▒|   
+                                        |▒▒▒|   
+  \ \        / /                        +---+   
+   \ \  /\  / /    ____   ____   ___          
+    \ \/  \/ /    / _  | | ___| / __|   +---+ 
+     \  /\  /    | (_| | | |    \__ \   |▒▒▒| 
+      \/  \/      \____| |_|    |___/   +---+ 
+                                                
+                                               
+                                                `
+
+var logo_frame2 string = `   _____    ____        _____    ____       +---+
+  /▒▒▒▒▒|  /▒▒▒▒\      /▒▒▒▒▒|  /▒▒▒▒\      |▒▒▒|
+ |▒|  __  |▒|  |▒|    |▒|  __  |▒|  |▒|     |▒▒▒|
+ |▒| |▒▒| |▒|  |▒|    |▒| |▒▒| |▒|  |▒|    |▒▒▒| 
+ |▒|__|▒| |▒|__|▒|    |▒|__|▒| |▒|__|▒|    |▒▒▒| 
+  \▒▒▒▒▒|  \▒▒▒▒/      \▒▒▒▒▒|  \▒▒▒▒/    |▒▒▒|  
+                                          |▒▒▒|  
+                                          |▒▒▒|  
+                                          +---+ 
+ \ \        / /                                  
+  \ \  /\  / /    ____     ____   ___             
+   \ \/  \/ /    / _  |   | ___| / __|   +---+  
+    \  /\  /    | (_| |   | |    \__ \  |▒▒▒|    
+     \/  \/      \____|   |_|    |___/  +---+   `
