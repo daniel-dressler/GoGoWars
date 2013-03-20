@@ -30,40 +30,67 @@ func main() {
 
 loop:
 	for {
-		for i := range team {
-			for move := 0; move < team[i].movePoints; move++ {
-				termbox.Clear(termbox.ColorWhite, termbox.ColorBlack)
-				raster.DrawTerrain()
-				raster.DrawUnits()
-				raster.DrawUi()
-				raster.DrawUiMsg(fmt.Sprintf("Health: %d",
-					team[i].health), 0, 0)
-				raster.DrawUiMsg(fmt.Sprintf("Turns left: %d",
-					team[i].movePoints-move), 0, 1)
-				termbox.Flush()
-
-				switch ev := termbox.PollEvent(); ev.Type {
-				case termbox.EventKey:
-					dx, dy := 0, 0
-					switch ev.Key {
-					case termbox.KeyEsc:
-						break loop
-					case termbox.KeyArrowUp:
-						dy = -1
-					case termbox.KeyArrowDown:
-						dy = 1
-					case termbox.KeyArrowLeft:
-						dx = -1
-					case termbox.KeyArrowRight:
-						dx = 1
-					}
-					team[i].Move(dx, dy, field)
-				}
-			}
-		}
+		
 	}
 	return
 }
+
+/* --------- Advisor ------------- */
+Const AdvisorStatus {
+	AdvisorMoreToDo = itoa
+	AdvisorTurnDone
+	AdvisorGameDone
+}
+
+type Advisor struct {
+	unit int
+	team Team
+	field Field
+}
+func (this *Advisor) Move() AdvisorStatus {
+	int i = this.unit
+
+	for move := 0; move < this.team[i].movePoints; move++ {
+		termbox.Clear(termbox.ColorWhite, termbox.ColorBlack)
+		raster.DrawTerrain()
+		raster.DrawUnits()
+		raster.DrawUi()
+		raster.DrawUiMsg(fmt.Sprintf("Health: %d",
+			team[i].health), 0, 0)
+		raster.DrawUiMsg(fmt.Sprintf("Turns left: %d",
+			team[i].movePoints-move), 0, 1)
+		termbox.Flush()
+
+		switch ev := termbox.PollEvent(); ev.Type {
+		case termbox.EventKey:
+			dx, dy := 0, 0
+			switch ev.Key {
+			case termbox.KeyEsc:
+				break loop
+			case termbox.KeyArrowUp:
+				dy = -1
+			case termbox.KeyArrowDown:
+				dy = 1
+			case termbox.KeyArrowLeft:
+				dx = -1
+			case termbox.KeyArrowRight:
+				dx = 1
+			}
+			this.team[i].Move(dx, dy, field)
+		}
+	}
+	
+	this.unit++
+	if (this.unit == len(this.team) {
+		this.unit = 0
+		return AdvisorTurnDone
+	} else {
+		// more moves to make
+		return AdvisorMoreToDo
+	}
+}
+
+/* --------- Comander ------------ */
 
 /* --------- Terrain / Field ----- */
 type Biome int32
