@@ -16,49 +16,51 @@ func main() {
 	termbox.Clear(termbox.ColorWhite, termbox.ColorBlack)
 
 	gameType := MainMenu()
-	if gameType == 0 {
+	if gameType == MenuQuit {
 		return
-	} else if gameType == 1 {
+	} else if gameType == MenuSkirmish {
 		// skirmish
-	}
-
-	field := MakeField(DeductUI(termbox.Size()))
-	team := MakeTeam()
-	raster := MakeRaster(team, field)
-	team[0] = Unit{name: '߉', x: 1, y: 2, health: 10, movePoints: 3}
-	team[1] = Unit{name: 'ﾋ', x: 1, y: 3, health: 5, movePoints: 1}
-
-loop:
-	for {
+		field := MakeField(DeductUI(termbox.Size()))
+		raster := MakeRaster(field)
+		player := MakePlayerCommander(field, raster)
 		
+		var status GameStatus = GameInProgress
+		for status == GameInProgress {
+			status = player.Turn()
+		}
 	}
+
+
+
 	return
 }
 
 /* --------- Advisor ------------- */
-Const AdvisorStatus {
-	AdvisorMoreToDo = itoa
+type AdvisorStatus int32
+const (
+	AdvisorMoreToDo = iota
 	AdvisorTurnDone
 	AdvisorGameDone
-}
+)
 
 type Advisor struct {
 	unit int
 	team Team
 	field Field
+	raster *Raster
 }
 func (this *Advisor) Move() AdvisorStatus {
-	int i = this.unit
+	i := this.unit
 
 	for move := 0; move < this.team[i].movePoints; move++ {
 		termbox.Clear(termbox.ColorWhite, termbox.ColorBlack)
-		raster.DrawTerrain()
-		raster.DrawUnits()
-		raster.DrawUi()
-		raster.DrawUiMsg(fmt.Sprintf("Health: %d",
-			team[i].health), 0, 0)
-		raster.DrawUiMsg(fmt.Sprintf("Turns left: %d",
-			team[i].movePoints-move), 0, 1)
+		this.raster.DrawTerrain()
+		this.raster.DrawUnits()
+		this.raster.DrawUi()
+		this.raster.DrawUiMsg(fmt.Sprintf("Health: %d",
+			this.team[i].health), 0, 0)
+		this.raster.DrawUiMsg(fmt.Sprintf("Turns left: %d",
+			this.team[i].movePoints-move), 0, 1)
 		termbox.Flush()
 
 		switch ev := termbox.PollEvent(); ev.Type {
@@ -66,7 +68,7 @@ func (this *Advisor) Move() AdvisorStatus {
 			dx, dy := 0, 0
 			switch ev.Key {
 			case termbox.KeyEsc:
-				break loop
+				return AdvisorGameDone
 			case termbox.KeyArrowUp:
 				dy = -1
 			case termbox.KeyArrowDown:
@@ -76,25 +78,65 @@ func (this *Advisor) Move() AdvisorStatus {
 			case termbox.KeyArrowRight:
 				dx = 1
 			}
-			this.team[i].Move(dx, dy, field)
+			this.team[i].Move(dx, dy, this.field)
 		}
 	}
 	
 	this.unit++
-	if (this.unit == len(this.team) {
+	if this.unit == len(this.team) {
 		this.unit = 0
 		return AdvisorTurnDone
-	} else {
-		// more moves to make
-		return AdvisorMoreToDo
 	}
+
+	return AdvisorMoreToDo
+}
+
+func MakeAdvisor( team Team, field Field, raster *Raster ) *Advisor {
+	advisor := new( Advisor )
+	advisor.field = field
+	advisor.team = team
+	advisor.raster = raster
+	return advisor
 }
 
 /* --------- Comander ------------ */
+type GameStatus int32
+const (
+	GameOver = iota
+	GameWon
+	GameLost
+	GameInProgress
+)
+
+type Commander struct {
+	advisor *Advisor
+	team Team
+	field Field
+}
+
+func MakePlayerCommander(field Field, raster *Raster) *Commander {
+	this := new(Commander)
+	this.team = MakeTeam()
+	this.field = field
+	this.advisor = MakeAdvisor( this.team, this.field, raster )
+
+	this.team[0] = Unit{name: '߉', x: 1, y: 2, health: 10, movePoints: 3}
+	this.team[1] = Unit{name: 'ﾋ', x: 1, y: 3, health: 5, movePoints: 1}
+	return this
+}
+
+func (this *Commander) Turn() GameStatus {
+	status := this.advisor.Move()
+
+	if status == AdvisorGameDone {
+		return GameOver
+	} 
+	return GameInProgress
+}
+	
 
 /* --------- Terrain / Field ----- */
 type Biome int32
-
 const (
 	BiomeGrass = iota
 	BiomeLake
@@ -160,21 +202,24 @@ func MakeTeam() Team {
 
 /* ------- Raster ----- */
 type Raster struct {
-	units       Team
+	team       Team
 	terrain     Field
 	chromeColor termbox.Attribute
 	textColor   termbox.Attribute
 	backColor   termbox.Attribute
 }
 
-func MakeRaster(u Team, t Field) *Raster {
+func MakeRaster(t Field) *Raster {
 	this := new(Raster)
-	this.units = u
 	this.terrain = t
 	this.chromeColor = termbox.ColorYellow
 	this.textColor = termbox.ColorWhite
 	this.backColor = termbox.ColorBlack
 	return this
+}
+
+func (this *Raster) RegisterTeam(newteam Team) {
+	this.team = newteam
 }
 
 var biomeColors = map[Biome]termbox.Attribute{
@@ -193,7 +238,7 @@ func (this Raster) DrawTerrain() {
 }
 
 func (this Raster) DrawUnits() {
-	for _, unit := range this.units {
+	for _, unit := range this.team {
 		bg := biomeColors[this.terrain[unit.y][unit.x].terrain]
 		termbox.SetCell(unit.x, unit.y, unit.name, termbox.ColorWhite, bg)
 	}
@@ -241,6 +286,11 @@ func DrawMsg(msg string, leftCorner int, topCorner int,
 }
 
 /* ------- main menu ---------- */
+type MenuSelection int32
+const (
+	MenuQuit = iota
+	MenuSkirmish
+)
 
 func getWindowMid() int {
 	x, _ := termbox.Size()
@@ -263,14 +313,14 @@ func MainMenu() int {
 			switch ev.Key {
 			case termbox.KeyEsc:
 				logoChannel <- true
-				return 0
+				return MenuQuit
 			default:
 				logoChannel <- true
-				return 1
+				return MenuSkirmish
 			}
 		}
 	}
-	return 1
+	return MenuQuit
 }
 
 
