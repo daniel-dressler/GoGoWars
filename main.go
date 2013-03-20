@@ -13,11 +13,11 @@ func main() {
 	}
 	defer termbox.Close()
 	termbox.SetInputMode(termbox.InputEsc)
-	termbox.Clear(termbox.ColorWhite, termbox.ColorBlack)
 
 	gameType := MainMenu()
 	if gameType == MenuQuit {
 		return
+
 	} else if gameType == MenuSkirmish {
 		// skirmish
 		field := MakeField(DeductUI(termbox.Size()))
@@ -29,10 +29,6 @@ func main() {
 			status = player.Turn()
 		}
 	}
-
-
-
-	return
 }
 
 /* --------- Advisor ------------- */
@@ -117,6 +113,7 @@ type Commander struct {
 func MakePlayerCommander(field Field, raster *Raster) *Commander {
 	this := new(Commander)
 	this.team = MakeTeam()
+	raster.RegisterTeam(this.team)
 	this.field = field
 	this.advisor = MakeAdvisor( this.team, this.field, raster )
 
