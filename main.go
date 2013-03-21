@@ -41,22 +41,22 @@ const (
 
 type Advisor struct {
 	unit int
-	team Team
+	team *Team
 	field Field
 	raster *Raster
 }
 func (this *Advisor) Move() AdvisorStatus {
 	i := this.unit
 
-	for move := 0; move < this.team[i].movePoints; move++ {
+	for move := 0; move < this.team.units[i].movePoints; move++ {
 		termbox.Clear(termbox.ColorWhite, termbox.ColorBlack)
 		this.raster.DrawTerrain()
 		this.raster.DrawUnits()
 		this.raster.DrawUi()
 		this.raster.DrawUiMsg(fmt.Sprintf("Health: %d",
-			this.team[i].health), 0, 0)
+			this.team.units[i].health), 0, 0)
 		this.raster.DrawUiMsg(fmt.Sprintf("Turns left: %d",
-			this.team[i].movePoints-move), 0, 1)
+			this.team.units[i].movePoints-move), 0, 1)
 		termbox.Flush()
 
 		switch ev := termbox.PollEvent(); ev.Type {
@@ -74,12 +74,12 @@ func (this *Advisor) Move() AdvisorStatus {
 			case termbox.KeyArrowRight:
 				dx = 1
 			}
-			this.team[i].Move(dx, dy, this.field)
+			this.team.units[i].Move(dx, dy, this.field)
 		}
 	}
 	
 	this.unit++
-	if this.unit == len(this.team) {
+	if this.unit == len(this.team.units) {
 		this.unit = 0
 		return AdvisorTurnDone
 	}
@@ -87,7 +87,7 @@ func (this *Advisor) Move() AdvisorStatus {
 	return AdvisorMoreToDo
 }
 
-func MakeAdvisor( team Team, field Field, raster *Raster ) *Advisor {
+func MakeAdvisor( team *Team, field Field, raster *Raster ) *Advisor {
 	advisor := new( Advisor )
 	advisor.field = field
 	advisor.team = team
@@ -106,19 +106,19 @@ const (
 
 type Commander struct {
 	advisor *Advisor
-	team Team
+	team *Team
 	field Field
 }
 
 func MakePlayerCommander(field Field, raster *Raster) *Commander {
 	this := new(Commander)
-	this.team = MakeTeam()
+	this.team = MakeTeam(RedHill)
 	raster.RegisterTeam(this.team)
 	this.field = field
 	this.advisor = MakeAdvisor( this.team, this.field, raster )
 
-	this.team[0] = Unit{name: '߉', x: 1, y: 2, health: 10, movePoints: 3}
-	this.team[1] = Unit{name: 'ﾋ', x: 1, y: 3, health: 5, movePoints: 1}
+	this.team.units[0] = Unit{name: '߉', x: 1, y: 2, health: 10, movePoints: 3}
+	this.team.units[1] = Unit{name: 'ﾋ', x: 1, y: 3, health: 5, movePoints: 1}
 	return this
 }
 
@@ -167,7 +167,6 @@ func MakeField(width int, height int) Field {
 }
 
 /* ------- Unit ------- */
-type Team []Unit
 type Unit struct {
 	name       rune
 	id         int
@@ -193,13 +192,26 @@ func (this *Unit) Move(dx int, dy int, terrain Field) {
 }
 
 /* ------- Team ------- */
-func MakeTeam() Team {
-	return make(Team, 2)
+type Affiliation int32
+const (
+	BlueSat = iota
+	RedHill
+)
+	
+type Team struct {
+	units []Unit
+	affiliation Affiliation
+}
+func MakeTeam(aff Affiliation) *Team {
+	this := new(Team)
+	this.units = make([]Unit, 2)
+	this.affiliation = aff
+	return this
 }
 
 /* ------- Raster ----- */
 type Raster struct {
-	team       Team
+	team        *Team
 	terrain     Field
 	chromeColor termbox.Attribute
 	textColor   termbox.Attribute
@@ -215,7 +227,7 @@ func MakeRaster(t Field) *Raster {
 	return this
 }
 
-func (this *Raster) RegisterTeam(newteam Team) {
+func (this *Raster) RegisterTeam(newteam *Team) {
 	this.team = newteam
 }
 
@@ -235,7 +247,7 @@ func (this Raster) DrawTerrain() {
 }
 
 func (this Raster) DrawUnits() {
-	for _, unit := range this.team {
+	for _, unit := range this.team.units {
 		bg := biomeColors[this.terrain[unit.y][unit.x].terrain]
 		termbox.SetCell(unit.x, unit.y, unit.name, termbox.ColorWhite, bg)
 	}
