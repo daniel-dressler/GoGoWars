@@ -23,10 +23,15 @@ func main() {
 		field := MakeField(DeductUI(termbox.Size()))
 		raster := MakeRaster(field)
 		player := MakePlayerCommander(field, raster)
+		ai := MakePlayerCommander(field, raster)
 
 		var status GameStatus = GameInProgress
+		players := [...]*Commander{player, ai}
+		i := 0
 		for status == GameInProgress {
-			status = player.Turn()
+			status = players[i].Turn()
+			i += 1
+			i %= len(players)
 		}
 	}
 }
