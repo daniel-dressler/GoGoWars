@@ -246,10 +246,17 @@ func (this Raster) DrawTerrain() {
 	return
 }
 
+var countryColors = map[Affiliation]termbox.Attribute{
+	BlueSat: termbox.ColorBlue,
+	RedHill: termbox.ColorRed,
+}
+
 func (this Raster) DrawUnits() {
-	for _, unit := range this.team.units {
+	team := this.team
+	for _, unit := range team.units {
 		bg := biomeColors[this.terrain[unit.y][unit.x].terrain]
-		termbox.SetCell(unit.x, unit.y, unit.name, termbox.ColorWhite, bg)
+		fg := countryColors[team.affiliation] 
+		termbox.SetCell(unit.x, unit.y, unit.name, fg, bg)
 	}
 	return
 }
