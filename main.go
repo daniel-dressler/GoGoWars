@@ -216,7 +216,7 @@ func MakeTeam(aff Affiliation) *Team {
 
 /* ------- Raster ----- */
 type Raster struct {
-	team        *Team
+	teams        []*Team
 	terrain     Field
 	chromeColor termbox.Attribute
 	textColor   termbox.Attribute
@@ -229,11 +229,12 @@ func MakeRaster(t Field) *Raster {
 	this.chromeColor = termbox.ColorYellow
 	this.textColor = termbox.ColorWhite
 	this.backColor = termbox.ColorBlack
+	this.teams = make([]*Team, 0)
 	return this
 }
 
 func (this *Raster) RegisterTeam(newteam *Team) {
-	this.team = newteam
+	this.teams = append(this.teams, newteam)
 }
 
 var biomeColors = map[Biome]termbox.Attribute{
@@ -257,11 +258,13 @@ var countryColors = map[Affiliation]termbox.Attribute{
 }
 
 func (this Raster) DrawUnits() {
-	team := this.team
-	for _, unit := range team.units {
-		bg := biomeColors[this.terrain[unit.y][unit.x].terrain]
-		fg := countryColors[team.affiliation]
-		termbox.SetCell(unit.x, unit.y, unit.name, fg, bg)
+	for i := range this.teams {
+		for j := range this.teams[i].units {
+			unit := this.teams[i].units[j]
+			bg := biomeColors[this.terrain[unit.y][unit.x].terrain]
+			fg := countryColors[this.teams[i].affiliation]
+			termbox.SetCell(unit.x, unit.y, unit.name, fg, bg)
+		}
 	}
 	return
 }
