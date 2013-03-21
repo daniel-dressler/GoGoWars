@@ -132,7 +132,10 @@ func MakePlayerCommander(field Field, raster *Raster, aff Affiliation) *Commande
 }
 
 func (this *Commander) Turn() GameStatus {
-	status := this.advisor.Move()
+	var status AdvisorStatus = AdvisorMoreToDo
+	for status == AdvisorMoreToDo {
+		status = this.advisor.Move()
+	}
 
 	if status == AdvisorGameDone {
 		return GameOver
