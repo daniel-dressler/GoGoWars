@@ -22,8 +22,9 @@ func main() {
 		// skirmish
 		field := MakeField(DeductUI(termbox.Size()))
 		raster := MakeRaster(field)
-		player := MakePlayerCommander(field, raster)
-		ai := MakePlayerCommander(field, raster)
+
+		player := MakePlayerCommander(field, raster, RedHill)
+		ai := MakePlayerCommander(field, raster, BlueSat)
 
 		var status GameStatus = GameInProgress
 		players := [...]*Commander{player, ai}
@@ -118,9 +119,9 @@ type Commander struct {
 	field   Field
 }
 
-func MakePlayerCommander(field Field, raster *Raster) *Commander {
+func MakePlayerCommander(field Field, raster *Raster, aff Affiliation) *Commander {
 	this := new(Commander)
-	this.team = MakeTeam(RedHill)
+	this.team = MakeTeam(aff)
 	raster.RegisterTeam(this.team)
 	this.field = field
 	this.advisor = MakeAdvisor(this.team, this.field, raster)
