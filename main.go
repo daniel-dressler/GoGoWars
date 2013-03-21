@@ -23,7 +23,7 @@ func main() {
 		field := MakeField(DeductUI(termbox.Size()))
 		raster := MakeRaster(field)
 		player := MakePlayerCommander(field, raster)
-		
+
 		var status GameStatus = GameInProgress
 		for status == GameInProgress {
 			status = player.Turn()
@@ -33,6 +33,7 @@ func main() {
 
 /* --------- Advisor ------------- */
 type AdvisorStatus int32
+
 const (
 	AdvisorMoreToDo = iota
 	AdvisorTurnDone
@@ -40,11 +41,12 @@ const (
 )
 
 type Advisor struct {
-	unit int
-	team *Team
-	field Field
+	unit   int
+	team   *Team
+	field  Field
 	raster *Raster
 }
+
 func (this *Advisor) Move() AdvisorStatus {
 	i := this.unit
 
@@ -77,7 +79,7 @@ func (this *Advisor) Move() AdvisorStatus {
 			this.team.units[i].Move(dx, dy, this.field)
 		}
 	}
-	
+
 	this.unit++
 	if this.unit == len(this.team.units) {
 		this.unit = 0
@@ -87,8 +89,8 @@ func (this *Advisor) Move() AdvisorStatus {
 	return AdvisorMoreToDo
 }
 
-func MakeAdvisor( team *Team, field Field, raster *Raster ) *Advisor {
-	advisor := new( Advisor )
+func MakeAdvisor(team *Team, field Field, raster *Raster) *Advisor {
+	advisor := new(Advisor)
 	advisor.field = field
 	advisor.team = team
 	advisor.raster = raster
@@ -97,6 +99,7 @@ func MakeAdvisor( team *Team, field Field, raster *Raster ) *Advisor {
 
 /* --------- Comander ------------ */
 type GameStatus int32
+
 const (
 	GameOver = iota
 	GameWon
@@ -106,8 +109,8 @@ const (
 
 type Commander struct {
 	advisor *Advisor
-	team *Team
-	field Field
+	team    *Team
+	field   Field
 }
 
 func MakePlayerCommander(field Field, raster *Raster) *Commander {
@@ -115,7 +118,7 @@ func MakePlayerCommander(field Field, raster *Raster) *Commander {
 	this.team = MakeTeam(RedHill)
 	raster.RegisterTeam(this.team)
 	this.field = field
-	this.advisor = MakeAdvisor( this.team, this.field, raster )
+	this.advisor = MakeAdvisor(this.team, this.field, raster)
 
 	this.team.units[0] = Unit{name: '߉', x: 1, y: 2, health: 10, movePoints: 3}
 	this.team.units[1] = Unit{name: 'ﾋ', x: 1, y: 3, health: 5, movePoints: 1}
@@ -127,13 +130,13 @@ func (this *Commander) Turn() GameStatus {
 
 	if status == AdvisorGameDone {
 		return GameOver
-	} 
+	}
 	return GameInProgress
 }
-	
 
 /* --------- Terrain / Field ----- */
 type Biome int32
+
 const (
 	BiomeGrass = iota
 	BiomeLake
@@ -193,15 +196,17 @@ func (this *Unit) Move(dx int, dy int, terrain Field) {
 
 /* ------- Team ------- */
 type Affiliation int32
+
 const (
 	BlueSat = iota
 	RedHill
 )
-	
+
 type Team struct {
-	units []Unit
+	units       []Unit
 	affiliation Affiliation
 }
+
 func MakeTeam(aff Affiliation) *Team {
 	this := new(Team)
 	this.units = make([]Unit, 2)
@@ -255,7 +260,7 @@ func (this Raster) DrawUnits() {
 	team := this.team
 	for _, unit := range team.units {
 		bg := biomeColors[this.terrain[unit.y][unit.x].terrain]
-		fg := countryColors[team.affiliation] 
+		fg := countryColors[team.affiliation]
 		termbox.SetCell(unit.x, unit.y, unit.name, fg, bg)
 	}
 	return
@@ -287,7 +292,7 @@ func (this Raster) DrawUiMsg(msg string, x int, y int) {
 }
 
 func DrawMsg(msg string, leftCorner int, topCorner int,
-							fg termbox.Attribute, bg termbox.Attribute) {
+	fg termbox.Attribute, bg termbox.Attribute) {
 	x := leftCorner
 	y := topCorner
 	for _, c := range msg {
@@ -303,6 +308,7 @@ func DrawMsg(msg string, leftCorner int, topCorner int,
 
 /* ------- main menu ---------- */
 type MenuSelection int32
+
 const (
 	MenuQuit = iota
 	MenuSkirmish
@@ -318,10 +324,8 @@ func MainMenu() int {
 	logoChannel := make(chan bool)
 	go animateLogo(logoChannel)
 
-
-
 	DrawMsg(skirmishButton, getWindowMid()-32/2, 17,
-			termbox.ColorBlack, termbox.ColorWhite)
+		termbox.ColorBlack, termbox.ColorWhite)
 
 	for {
 		switch ev := termbox.PollEvent(); ev.Type {
@@ -339,7 +343,6 @@ func MainMenu() int {
 	return MenuQuit
 }
 
-
 var skirmishButton string = `
 +------------------------------+
 |    Play a skirmish! ENTER    |
@@ -349,7 +352,7 @@ func animateLogo(quit chan bool) {
 	frame := 0
 	for {
 		select {
-		case <- quit:
+		case <-quit:
 			return
 		default:
 			time.Sleep(500 * time.Millisecond)
@@ -361,7 +364,8 @@ func animateLogo(quit chan bool) {
 		}
 	}
 }
-var logo = []string {logo_frame1, logo_frame2}
+
+var logo = []string{logo_frame1, logo_frame2}
 var logo_frame1 string = `                                                  
     _____    ____      _____    ____    +---+      
    /▒▒▒▒▒|  /▒▒▒▒\    /▒▒▒▒▒|  /▒▒▒▒\   |▒▒▒|       
