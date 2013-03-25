@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/nsf/termbox-go"
 	"time"
+	"math"
 )
 
 func main() {
@@ -14,7 +15,7 @@ func main() {
 	defer termbox.Close()
 	termbox.SetInputMode(termbox.InputEsc)
 
-	gameType := MainMenu()
+	gameType := MenuSkirmish//MainMenu()
 	if gameType == MenuQuit {
 		return
 
@@ -47,24 +48,29 @@ const (
 )
 
 type Advisor struct {
-	unit   int
+	cur_unit   int
 	team   *Team
 	field  Field
 	raster *Raster
 }
 
 func (this *Advisor) Move() AdvisorStatus {
-	i := this.unit
+	if this.cur_unit == len(this.team.units) {
+		this.cur_unit = 0
+		return AdvisorTurnDone
+	}
 
-	for move := 0; move < this.team.units[i].movePoints; move++ {
+	unit := this.team.units[this.cur_unit]
+	for move := 0; move < unit.movePoints; move++ {
 		termbox.Clear(termbox.ColorWhite, termbox.ColorBlack)
 		this.raster.DrawTerrain()
 		this.raster.DrawUnits()
 		this.raster.DrawUi()
+		this.raster.DrawActiveUnit(this.team, unit)
 		this.raster.DrawUiMsg(fmt.Sprintf("Health: %d",
-			this.team.units[i].health), 0, 0)
+			unit.GetDisplayHealth()), 4, 0)
 		this.raster.DrawUiMsg(fmt.Sprintf("Turns left: %d",
-			this.team.units[i].movePoints-move), 0, 1)
+			unit.movePoints - move), 4, 1)
 		termbox.Flush()
 
 		switch ev := termbox.PollEvent(); ev.Type {
@@ -82,16 +88,11 @@ func (this *Advisor) Move() AdvisorStatus {
 			case termbox.KeyArrowRight:
 				dx = 1
 			}
-			this.team.units[i].Move(dx, dy, this.field)
+			unit.Move(dx, dy, this.field)
 		}
 	}
 
-	this.unit++
-	if this.unit == len(this.team.units) {
-		this.unit = 0
-		return AdvisorTurnDone
-	}
-
+	this.cur_unit++
 	return AdvisorMoreToDo
 }
 
@@ -124,10 +125,11 @@ func MakePlayerCommander(field Field, raster *Raster, aff Affiliation) *Commande
 	this.team = MakeTeam(aff)
 	raster.RegisterTeam(this.team)
 	this.field = field
+	this.team.Recruit(0, field)
+	this.team.Recruit(1, field)
+
 	this.advisor = MakeAdvisor(this.team, this.field, raster)
 
-	this.team.units[0] = Unit{name: '߉', x: 1, y: 2, health: 10, movePoints: 3}
-	this.team.units[1] = Unit{name: 'ﾋ', x: 1, y: 3, health: 5, movePoints: 1}
 	return this
 }
 
@@ -179,14 +181,31 @@ func MakeField(width int, height int) Field {
 }
 
 /* ------- Unit ------- */
+type UnitPrototype struct {
+	name rune
+	movePoints int
+}
+
+var UnitTypeTable = []UnitPrototype{{'߉', 3},{'ﾋ', 2}}
+	
 type Unit struct {
 	name       rune
 	id         int
-	health     int
+	health     float64
 	movePoints int
 	x          int
 	y          int
 }
+
+func BuildUnit(id int) *Unit {
+	this := new(Unit)
+	this.name = UnitTypeTable[id].name
+	this.movePoints = UnitTypeTable[id].movePoints
+	this.health = 10.0
+	this.id = id
+	return this
+}
+	
 
 func (this *Unit) Move(dx int, dy int, terrain Field) {
 	this.x += dx
@@ -203,6 +222,28 @@ func (this *Unit) Move(dx int, dy int, terrain Field) {
 	return
 }
 
+func (this *Unit) Fire(target int) float64 {
+	return DamageBaseMulti[this.id][target] * this.health
+}
+
+func (this *Unit) TakeDamage(damage float64) bool {
+	this.health -= damage
+	return this.IsAlive()
+}
+
+func (this *Unit) IsAlive() bool {
+	return this.health - 0.1 < 0
+}
+
+func (this *Unit) GetDisplayHealth() int {
+	return int(math.Ceil(this.health))
+}
+
+var DamageBaseMulti = [][]float64{
+{1, 1},
+{1, 1}}
+	
+
 /* ------- Team ------- */
 type Affiliation int32
 
@@ -211,22 +252,42 @@ const (
 	RedHill
 )
 
+type Point struct {
+	x int
+	y int
+}
+
+var FactoryLocation = map[Affiliation]Point {
+	BlueSat: {1, 1},
+	RedHill: {3, 3},
+}
+	
+
 type Team struct {
-	units       []Unit
+	units       []*Unit
 	affiliation Affiliation
 }
 
 func MakeTeam(aff Affiliation) *Team {
 	this := new(Team)
-	this.units = make([]Unit, 2)
+	this.units = make([]*Unit, 0)
 	this.affiliation = aff
 	return this
 }
 
+func (this *Team) Recruit(id int, field Field) {
+	unit := BuildUnit(id)
+	this.units = append(this.units, unit)
+	delta := FactoryLocation[this.affiliation]
+	unit.Move(delta.x, delta.y, field)
+}
+
 /* ------- Raster ----- */
 type Raster struct {
-	teams        []*Team
+	teams       []*Team
 	terrain     Field
+	uiStart     int
+	uiWidth     int
 	chromeColor termbox.Attribute
 	textColor   termbox.Attribute
 	backColor   termbox.Attribute
@@ -235,6 +296,8 @@ type Raster struct {
 func MakeRaster(t Field) *Raster {
 	this := new(Raster)
 	this.terrain = t
+	this.uiStart = len(t)
+	this.uiWidth = len(t[0])
 	this.chromeColor = termbox.ColorYellow
 	this.textColor = termbox.ColorWhite
 	this.backColor = termbox.ColorBlack
@@ -251,7 +314,7 @@ var biomeColors = map[Biome]termbox.Attribute{
 	BiomeGrass: termbox.ColorGreen,
 }
 
-func (this Raster) DrawTerrain() {
+func (this *Raster) DrawTerrain() {
 	for y := range this.terrain {
 		for x := range this.terrain[y] {
 			termbox.SetCell(x, y, ' ', termbox.ColorWhite,
@@ -266,40 +329,71 @@ var countryColors = map[Affiliation]termbox.Attribute{
 	RedHill: termbox.ColorRed,
 }
 
-func (this Raster) DrawUnits() {
+func (this *Raster) DrawUnit(x int, y int, country Affiliation, unit *Unit) {
+	bg := biomeColors[this.terrain[unit.y][unit.x].terrain]
+	fg := countryColors[country]
+	termbox.SetCell(x, y, unit.name, fg, bg)
+}
+
+func (this *Raster) DrawUnits() {
 	for i := range this.teams {
 		for j := range this.teams[i].units {
 			unit := this.teams[i].units[j]
-			bg := biomeColors[this.terrain[unit.y][unit.x].terrain]
-			fg := countryColors[this.teams[i].affiliation]
-			termbox.SetCell(unit.x, unit.y, unit.name, fg, bg)
+			this.DrawUnit(unit.x, unit.y, this.teams[i].affiliation, unit)
 		}
 	}
 	return
 }
-
-var heightUI int = 4
+var heightUI int = 3
 
 func DeductUI(width int, height int) (int, int) {
 	return width, height - heightUI
 }
 
-func (this Raster) DrawUi() {
-	windowHeight := len(this.terrain)
-	for x := 0; x < len(this.terrain[0]); x++ {
+func (this *Raster) DrawChromeCell(x int, y int, char rune) {
+	termbox.SetCell(x, this.uiStart+y, char,
+		this.chromeColor, this.backColor)
+}
+	
+
+func (this *Raster) DrawUi() {
+	for x := 0; x < this.uiWidth; x++ {
 		for y := 0; y < heightUI; y++ {
 			var char rune = ' '
 			if y == 0 {
-				char = '‾'
+				char = '-'
 			}
-
-			termbox.SetCell(x, windowHeight+y, char,
-				this.chromeColor, this.backColor)
+			this.DrawChromeCell(x, y, char)
 		}
 	}
 }
 
-func (this Raster) DrawUiMsg(msg string, x int, y int) {
+func (this *Raster) DrawActiveUnit(team *Team, active *Unit) {
+	// draw corners
+	for x, y := 0, 0; y < 2; {
+		this.DrawChromeCell(x*2, y*2, '+')
+		x++
+		y += x / 2
+		x %= 2
+	}
+	// draw -'s
+	for y := 0; y < 2; y++ {
+		this.DrawChromeCell(1, y*2, '-')
+	}
+	// draw |'s
+	for x := 0; x < 2; x++ {
+		this.DrawChromeCell(x*2, 1, '|')
+	}
+	
+	// draw unit
+	color := countryColors[team.affiliation]
+	termbox.SetCell(1, this.uiStart + 1, active.name, color, this.backColor)
+	termbox.SetCell(active.x, active.y, active.name, termbox.ColorWhite, color)
+}
+
+	
+
+func (this *Raster) DrawUiMsg(msg string, x int, y int) {
 	DrawMsg(msg, x, len(this.terrain)+y+1, this.textColor, this.backColor)
 }
 
