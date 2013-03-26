@@ -21,11 +21,10 @@ func main() {
 
 	} else if gameType == MenuSkirmish {
 		// skirmish
-		field := MakeField(DeductUI(termbox.Size()))
-		raster := MakeRaster(field)
+		state := MakeGameState(DeductUI(termbox.Size()))
 
-		player := MakePlayerCommander(field, raster, RedHill)
-		ai := MakePlayerCommander(field, raster, BlueSat)
+		player := MakePlayerCommander(state, RedHill)
+		ai := MakePlayerCommander(state, BlueSat)
 
 		var status GameStatus = GameInProgress
 		players := [...]*Commander{player, ai}
@@ -36,6 +35,21 @@ func main() {
 			i %= len(players)
 		}
 	}
+}
+
+/* --------- Game State --------- */
+type GameState struct {
+	terrain Field
+	occupied Field
+	display *Raster
+}
+
+func MakeGameState(x int, y int) *GameState {
+	this := new(GameState)
+	this.terrain = MakeTerrainField(x,y)
+	this.occupied = MakeEmptyField(x,y)
+	this.display = MakeRaster(this.terrain)
+	return this
 }
 
 /* --------- Advisor ------------- */
@@ -88,7 +102,7 @@ func (this *Advisor) Move() AdvisorStatus {
 			case termbox.KeyArrowRight:
 				dx = 1
 			}
-			unit.Move(dx, dy, this.field)
+			unit.Move(dx, dy)
 		}
 	}
 
@@ -117,18 +131,18 @@ const (
 type Commander struct {
 	advisor *Advisor
 	team    *Team
-	field   Field
+	game    *GameState
 }
 
-func MakePlayerCommander(field Field, raster *Raster, aff Affiliation) *Commander {
+func MakePlayerCommander(game *GameState, aff Affiliation) *Commander {
 	this := new(Commander)
-	this.team = MakeTeam(aff)
-	raster.RegisterTeam(this.team)
-	this.field = field
-	this.team.Recruit(0, field)
-	this.team.Recruit(1, field)
+	this.team = MakeTeam(aff, game)
+	game.display.RegisterTeam(this.team)
+	this.game = game
+	this.team.Recruit(0)
+	this.team.Recruit(1)
 
-	this.advisor = MakeAdvisor(this.team, this.field, raster)
+	this.advisor = MakeAdvisor(this.team, game.terrain, game.display)
 
 	return this
 }
@@ -149,7 +163,9 @@ func (this *Commander) Turn() GameStatus {
 type Biome int32
 
 const (
-	BiomeGrass = iota
+	CellEmpty = iota
+	CellOccupied
+	BiomeGrass
 	BiomeLake
 )
 
@@ -164,7 +180,7 @@ var noiseToBiome = map[int]Biome{
 	2: BiomeGrass,
 }
 
-func MakeField(width int, height int) Field {
+func MakeTerrainField(width int, height int) Field {
 	field := make(Field, height)
 	n2d := NewNoise2DContext(time.Now().Unix())
 
@@ -178,6 +194,28 @@ func MakeField(width int, height int) Field {
 		}
 	}
 	return field
+}
+
+func MakeEmptyField(width int, height int) Field {
+	field := make(Field, height)
+
+	for i := range field {
+		field[i] = make([]FieldCell, width)
+	}
+	return field
+}
+
+func (this Field) IsValid(x int, y int) bool {
+	return x >= 0 && x < len(this[0]) &&
+			y >= 0 && y < len(this)
+}
+
+func (this Field) GetCell(x int, y int) Biome {
+	return this[y][x].terrain
+}
+
+func (this Field) SetCell(x int, y int, newBiome Biome) {
+	this[y][x].terrain = newBiome
 }
 
 /* ------- Unit ------- */
@@ -195,35 +233,57 @@ type Unit struct {
 	movePoints int
 	x          int
 	y          int
+	team       *Team
 }
 
-func BuildUnit(id int) *Unit {
+func BuildUnit(id int, team *Team, x int, y int) *Unit {
 	this := new(Unit)
 	this.name = UnitTypeTable[id].name
 	this.movePoints = UnitTypeTable[id].movePoints
 	this.health = 10.0
 	this.id = id
+	this.team = team
+
+	for team.game.occupied.GetCell(x, y) != CellEmpty {
+		x++
+	}
+	this.x = x
+	this.y = y
+	team.game.occupied.SetCell(x, y, CellOccupied)
+	
 	return this
 }
+
+type MoveStatus int32
+
+const (
+	MoveOk = iota
+	MoveImpassableBiome
+	MoveOccupiedCell
+)
 	
+func (this *Unit) Move(dx int, dy int) MoveStatus {
+	x := this.x + dx
+	y := this.y + dy
 
-func (this *Unit) Move(dx int, dy int, terrain Field) {
-	this.x += dx
-	this.y += dy
-
-	if this.x < 0 || this.x >= len(terrain[0]) ||
-		this.y < 0 || this.y >= len(terrain) ||
-		terrain[this.y][this.x].terrain != BiomeGrass {
-
-		this.x -= dx
-		this.y -= dy
+	if !this.team.game.terrain.IsValid(x, y) ||
+		this.team.game.terrain.GetCell(x, y) != BiomeGrass {
+		return MoveImpassableBiome
 	}
 
-	return
+	if this.team.game.occupied.GetCell(x, y) != CellEmpty {
+		return MoveOccupiedCell
+	}
+
+	this.team.game.occupied.SetCell(this.x, this.y, CellEmpty)
+	this.x = x
+	this.y = y
+	this.team.game.occupied.SetCell(x, y, CellOccupied)
+	return MoveOk
 }
 
-func (this *Unit) Fire(target int) float64 {
-	return DamageBaseMulti[this.id][target] * this.health
+func (this *Unit) Fire(target_type int) float64 {
+	return DamageBaseMulti[this.id][target_type] * this.health
 }
 
 func (this *Unit) TakeDamage(damage float64) bool {
@@ -266,20 +326,21 @@ var FactoryLocation = map[Affiliation]Point {
 type Team struct {
 	units       []*Unit
 	affiliation Affiliation
+	game        *GameState
 }
 
-func MakeTeam(aff Affiliation) *Team {
+func MakeTeam(aff Affiliation, game *GameState) *Team {
 	this := new(Team)
 	this.units = make([]*Unit, 0)
 	this.affiliation = aff
+	this.game = game
 	return this
 }
 
-func (this *Team) Recruit(id int, field Field) {
-	unit := BuildUnit(id)
-	this.units = append(this.units, unit)
+func (this *Team) Recruit(id int) {
 	delta := FactoryLocation[this.affiliation]
-	unit.Move(delta.x, delta.y, field)
+	unit := BuildUnit(id, this, delta.x, delta.y)
+	this.units = append(this.units, unit)
 }
 
 /* ------- Raster ----- */
