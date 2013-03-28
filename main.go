@@ -15,7 +15,8 @@ func main() {
 	defer termbox.Close()
 	termbox.SetInputMode(termbox.InputEsc)
 
-	gameType := MenuSkirmish//MainMenu()
+	//gameType := MenuSkirmish//MainMenu()
+	gameType := MainMenu()
 	if gameType == MenuQuit {
 		return
 
