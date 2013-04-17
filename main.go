@@ -43,10 +43,12 @@ type GameState struct {
 	terrain Field
 	occupied Field
 	display *Raster
+	players []*Commander
 }
 
 func MakeGameState(x int, y int) *GameState {
 	this := new(GameState)
+	this.players := make([]*Commander, 0)
 	this.terrain = MakeTerrainField(x,y)
 	this.occupied = MakeEmptyField(x,y)
 	this.display = MakeRaster(this.terrain)
@@ -67,6 +69,7 @@ type Advisor struct {
 	team   *Team
 	field  Field
 	raster *Raster
+	game *GameState
 }
 
 func (this *Advisor) Move() AdvisorStatus {
@@ -88,9 +91,10 @@ func (this *Advisor) Move() AdvisorStatus {
 			unit.movePoints - move), 4, 1)
 		termbox.Flush()
 
+		moveStatus = MoveOk;
+		dx, dy := 0, 0
 		switch ev := termbox.PollEvent(); ev.Type {
 		case termbox.EventKey:
-			dx, dy := 0, 0
 			switch ev.Key {
 			case termbox.KeyEsc:
 				return AdvisorGameDone
@@ -103,16 +107,18 @@ func (this *Advisor) Move() AdvisorStatus {
 			case termbox.KeyArrowRight:
 				dx = 1
 			}
-			unit.Move(dx, dy)
+			moveStatus = unit.Move(dx, dy)
 		}
+
 	}
 
 	this.cur_unit++
 	return AdvisorMoreToDo
 }
 
-func MakeAdvisor(team *Team, field Field, raster *Raster) *Advisor {
+func MakeAdvisor(game *GameState, team *Team, field Field, raster *Raster) *Advisor {
 	advisor := new(Advisor)
+	advisor.game = game
 	advisor.field = field
 	advisor.team = team
 	advisor.raster = raster
@@ -140,6 +146,7 @@ func MakePlayerCommander(game *GameState, aff Affiliation) *Commander {
 	this.team = MakeTeam(aff, game)
 	game.display.RegisterTeam(this.team)
 	this.game = game
+	game.players = append(game.players, this)
 	this.team.Recruit(0)
 	this.team.Recruit(1)
 
@@ -226,7 +233,7 @@ type UnitPrototype struct {
 }
 
 var UnitTypeTable = []UnitPrototype{{'߉', 3},{'ﾋ', 2}}
-	
+
 type Unit struct {
 	name       rune
 	id         int
@@ -251,7 +258,7 @@ func BuildUnit(id int, team *Team, x int, y int) *Unit {
 	this.x = x
 	this.y = y
 	team.game.occupied.SetCell(x, y, CellOccupied)
-	
+
 	return this
 }
 
@@ -262,7 +269,13 @@ const (
 	MoveImpassableBiome
 	MoveOccupiedCell
 )
-	
+
+func (this *Unit) GetAbsPos(dx int, dy int) (x int, y int) {
+	x := this.x + dx
+	y := this.y + dy
+	return x, y
+}
+
 func (this *Unit) Move(dx int, dy int) MoveStatus {
 	x := this.x + dx
 	y := this.y + dy
@@ -303,7 +316,7 @@ func (this *Unit) GetDisplayHealth() int {
 var DamageBaseMulti = [][]float64{
 {1, 1},
 {1, 1}}
-	
+
 
 /* ------- Team ------- */
 type Affiliation int32
@@ -322,7 +335,7 @@ var FactoryLocation = map[Affiliation]Point {
 	BlueSat: {1, 1},
 	RedHill: {3, 3},
 }
-	
+
 
 type Team struct {
 	units       []*Unit
@@ -343,6 +356,11 @@ func (this *Team) Recruit(id int) {
 	unit := BuildUnit(id, this, delta.x, delta.y)
 	this.units = append(this.units, unit)
 }
+
+func (this *Team) GetFriendy(unitID int) *Unit {
+	return this.units[unitID]
+}
+
 
 /* ------- Raster ----- */
 type Raster struct {
@@ -416,7 +434,7 @@ func (this *Raster) DrawChromeCell(x int, y int, char rune) {
 	termbox.SetCell(x, this.uiStart+y, char,
 		this.chromeColor, this.backColor)
 }
-	
+
 
 func (this *Raster) DrawUi() {
 	for x := 0; x < this.uiWidth; x++ {
@@ -446,14 +464,14 @@ func (this *Raster) DrawActiveUnit(team *Team, active *Unit) {
 	for x := 0; x < 2; x++ {
 		this.DrawChromeCell(x*2, 1, '|')
 	}
-	
+
 	// draw unit
 	color := countryColors[team.affiliation]
 	termbox.SetCell(1, this.uiStart + 1, active.name, color, this.backColor)
 	termbox.SetCell(active.x, active.y, active.name, termbox.ColorWhite, color)
 }
 
-	
+
 
 func (this *Raster) DrawUiMsg(msg string, x int, y int) {
 	DrawMsg(msg, x, len(this.terrain)+y+1, this.textColor, this.backColor)
