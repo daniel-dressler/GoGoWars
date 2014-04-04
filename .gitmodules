@@ -1,0 +1,3 @@
+[submodule "lib/minko"]
+	path = lib/minko
+	url = git@github.com:aerys/minko.git
