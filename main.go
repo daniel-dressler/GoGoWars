@@ -48,7 +48,8 @@ type GameState struct {
 
 func MakeGameState(x int, y int) *GameState {
 	this := new(GameState)
-	this.players := make([]*Commander, 0)
+	var players = make([]*Commander, 0)
+	this.players = players
 	this.terrain = MakeTerrainField(x,y)
 	this.occupied = MakeEmptyField(x,y)
 	this.display = MakeRaster(this.terrain)
@@ -91,7 +92,6 @@ func (this *Advisor) Move() AdvisorStatus {
 			unit.movePoints - move), 4, 1)
 		termbox.Flush()
 
-		moveStatus = MoveOk;
 		dx, dy := 0, 0
 		switch ev := termbox.PollEvent(); ev.Type {
 		case termbox.EventKey:
@@ -107,7 +107,7 @@ func (this *Advisor) Move() AdvisorStatus {
 			case termbox.KeyArrowRight:
 				dx = 1
 			}
-			moveStatus = unit.Move(dx, dy)
+			unit.Move(dx, dy)
 		}
 
 	}
@@ -150,7 +150,7 @@ func MakePlayerCommander(game *GameState, aff Affiliation) *Commander {
 	this.team.Recruit(0)
 	this.team.Recruit(1)
 
-	this.advisor = MakeAdvisor(this.team, game.terrain, game.display)
+	this.advisor = MakeAdvisor(game, this.team, game.terrain, game.display)
 
 	return this
 }
@@ -271,8 +271,8 @@ const (
 )
 
 func (this *Unit) GetAbsPos(dx int, dy int) (x int, y int) {
-	x := this.x + dx
-	y := this.y + dy
+	x = this.x + dx
+	y = this.y + dy
 	return x, y
 }
 
